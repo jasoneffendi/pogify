@@ -2,13 +2,13 @@ var express = require("express");
 var app = express();
 var cookie = require("cookie");
 var http = require("http").createServer(app);
-var io = require("socket.io")(http, {
-  perMessageDeflate: false,
-});
 var path = require("path");
 var session = require("express-session");
 var bodyParser = require("body-parser");
 var customAlphabet = require("nanoid").customAlphabet;
+
+const webpush = require('web-push');
+const vapid = require('./secrets/vapid.js');
 
 app.set("trust proxy", 1);
 app.use(express.static("build"));
@@ -21,6 +21,7 @@ const sessionMiddleware = session({
 });
 
 app.use(sessionMiddleware);
+// server.use(express.cookieParser());
 
 // normal stuff
 const nanoid = customAlphabet(
@@ -50,83 +51,80 @@ app.get("/*", (req, res) => {
   res.sendFile(path.join(__dirname, "build/index.html"));
 });
 
-// websockets
-const namespaces = io.of(/^\/\w+$/);
+// push-api based connection
 
-io.use((socket, next) => {
-  sessionMiddleware(socket.request, {}, next);
+webpush.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
+
+app.get("/vapid", (req, res) => {
+  res.send(vapid.publicKey);
 });
 
-// current track obj
-// TODO: this will memory leak
-const current = {};
-namespaces.on("connection", (socket) => {
-  const namespace = socket.nsp;
-  let isHost = false;
-  if (socket.request.session.hostOf) {
-    isHost = socket.request.session.hostOf.includes(
-      socket.nsp.name.replace("/", "")
-    );
-    socket.emit("IS_HOST", isHost);
-    socket.request.session.touch();
+var streams = {};
+
+app.post("/start", (req, res) => {
+  var id = req.body.stream;
+  var nsp = req.body.namespace;
+  if (id in streams) {
+    res.status(403);
+    res.send({ message: "Stream already exists" });
   } else {
-    socket.emit("IS_HOST", isHost);
+    streams[id] = {
+      namespace: nsp,
+      subscribers: Set(),
+      data: {}
+    };
+    res.send({ "message": "Successfully started stream" });
   }
-  socket.on("IS_HOST", () => {
-    socket.emit("IS_HOST", isHost);
-  });
-  namespace.emit("CONNECTION_COUNT", Object.keys(namespace.connected).length);
-  if (isHost) {
-    const name = namespace.name;
-    socket.on("HOST_CONNECTED", (uri, position, playing) => {
-      namespace.emit("HOST_CONNECTED", uri, position, playing);
-      console.log("Host connected on ", name);
-      current[name] = {
-        uri,
-        position,
-        when: Date.now(),
-        playing,
-      };
-    });
+});
 
-    socket.on("UPDATE", (uri, position, playing) => {
-      current[name] = {
-        uri,
-        position,
-        playing,
-        when: Date.now(),
-      };
-      console.log("update on ", name, current[name]);
-      namespace.emit("UPDATE", uri, position, playing);
-    });
-
-    socket.on("END", () => {
-      delete current[name];
-      console.log("END on ", name);
-      socket.emit("END");
-    });
-    socket.on("disconnect", () => {
-      console.log("host disconnect on ", name);
-      namespace.emit("HOST_DISCONNECT");
-      delete current[name];
-    });
+app.post("/subscribe", (req, res) => {
+  var id = req.body.stream;
+  var key = req.body.credentials;
+  if (!(id in streams)) {
+    res.status(404);
+    res.send({ message: "Stream does not exist" });
   } else {
-    socket.on("INITIAL", () => {
-      socket.emit("INITIAL", current[namespace.name]);
-    });
-    socket.on("disconnect", () => {
-      console.log("disconnect ", socket.id);
-      namespace.emit(
-        "CONNECTION_COUNT",
-        Object.keys(namespace.connected).length
-      );
+    streams[id].subscribers.add(JSON.stringify(key));
+    res.send({
+      message: "Successfully subscribed user",
+      data: streams[id].data
     });
   }
 });
 
-io.on("connection", (socket) => {
-  console.log("a user connected");
+app.post("/update", (req, res) => {
+  var id = req.body.stream;
+  var payload = req.body.payload;
+  var nsp = req.body.namespace;
+  if (!(id in streams)) {
+    res.status(404);
+    res.send({ message: "Stream does not exist" });
+  } else if (streams[id].namespace != nsp) {
+    res.status(403);
+    res.send({ message: "User namespace does not match" });
+  } else {
+    streams[id].data = payload;
+    streams[id].subscribers.forEach(key => {
+      webpush.sendNotification(JSON.parse(key), JSON.stringify(payload));
+    });
+    res.send("Successfully updated status");
+  }
 });
+
+
+app.post("/is_host", (req, res) => {
+  var id = req.body.stream;
+  var nsp = req.body.namespace;
+  if (!(id in streams)) {
+    res.status(404);
+    res.send({ message: "Stream does not exist" });
+  } else if (streams[id].namespace != nsp) {
+    res.send({ isHost: false });
+  } else {
+    res.send({ isHost: true });
+  }
+});
+
 
 http.listen(process.env.PORT || 5500, () => {
   console.log("listening on *:" + process.env.PORT || 5500);

@@ -6,25 +6,27 @@ class Home extends React.Component {
   render() {
     return (
       <Layout>
-        <h1
-          style={{
-            textAlign: "center",
-            fontSize: "5em",
-            letterSpacing: "7px",
-            margin: 0,
-            fontWeight: "bold",
-          }}
-        >
-          POGIFY
+        <>
+          <h1
+            style={{
+              textAlign: "center",
+              fontSize: "5em",
+              letterSpacing: "7px",
+              margin: 0,
+              fontWeight: "bold",
+            }}
+          >
+            POGIFY
           </h1>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <Link to="/session">
-            <button>I am a viewer</button>
-          </Link>
-          <Link to="/create">
-            <button style={{ marginLeft: 10}}>I am a streamer</button>
-          </Link>
-        </div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <Link to="/session">
+              <button>I am a viewer</button>
+            </Link>
+            <Link to="/create">
+              <button style={{ marginLeft: 10 }}>I am a streamer</button>
+            </Link>
+          </div>
+        </>
       </Layout>
     );
   }

@@ -2,8 +2,9 @@ import React from "react";
 import HostPlayer from "./HostPlayer";
 import ListenerPlayer from "./ListenerPlayer";
 import Layout from "./Layout"
+import { WebPushConnection } from "./WebPushConnection"
 
-const io = window.io;
+
 export class Room extends React.Component {
   state = {
     isHost: false,
@@ -12,7 +13,7 @@ export class Room extends React.Component {
   componentDidMount() {
     console.log("room mount");
 
-    this.socket = io("/" + this.props.match.params.id);
+    this.socket = WebPushConnection(this.props.match.params.id);
     console.log("room mount");
     this.socket.on("IS_HOST", (isHost) => {
       console.log("ishost", isHost);
