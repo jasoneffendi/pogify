@@ -38,11 +38,13 @@ p {
   transition: box-shadow 0.3s;
   border: none;
   margin: 5px;
-  background-color: #eb5e28;
+  /* background-color: #eb5e28; */
   outline: none;
   color: white;
   font-family: "Roboto", sans-serif;
   font-size: 20px;
+  background-color: #00E092;
+  /* background-image: linear-gradient(to right, #7f53ac 0, #657ced 100%) */
 }
 
 .content button:hover {
@@ -63,6 +65,11 @@ p {
 
 .darkContent button {
   color: #FFFCF2;
+  /* transition: background-color 0.5s, border-color 0.5s, color 0.5s; */
+  border-color: white;
+  background-color: #222222;
+  background-color: #00E092;
+  /* color: white; */
 }
 
 .footer {
