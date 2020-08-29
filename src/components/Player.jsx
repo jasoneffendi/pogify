@@ -12,6 +12,7 @@ import { secondsToTimeFormat } from '../utils/formatters'
 const InheritA = styled.a`
   color: inherit;
   text-decoration: inherit;
+  margin: 0 3px;
 
   &:hover {
     /* color: grey; */
@@ -115,6 +116,7 @@ export const Player = (props) => {
           {props.playing ? <FAI icon={faPause} /> : <FAI icon={faPlay} />}
         </div>
       )}
+      {props.children}
     </div>
   );
 };
